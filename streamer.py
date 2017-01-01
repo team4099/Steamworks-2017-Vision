@@ -35,7 +35,7 @@ rgb_writer = cv2.VideoWriter()
 depth_writer = cv2.VideoWriter()
 ir_writer = cv2.VideoWriter()
 
-get_ir = True
+get_ir = False
 
 def encode_frame(image, quality=30):
     """
@@ -90,12 +90,16 @@ def gen():
     global last_frame_sent, rgb_frame, frames_stored, get_ir, ir_frame, depth_frame
     while True:
         # frames_stored += 1
-        rgb_frame = read_kinect_images(ir=False)
         if get_ir:
+            # time.sleep(0.5)
+            print("got ir")
             ir_frame, depth_frame = read_kinect_images(ir=True)
+            print("really got ir")
             get_ir = False
+            # time.sleep(0.5)
         # ir_frame, depth_frame = read_kinect_images()
         if time.time() - last_frame_sent > FPS:
+            rgb_frame = read_kinect_images(ir=False)
             frame = encode_frame(rgb_frame)
             last_frame_sent = time.time()
             # if frames_stored > FRAMES_PER_VIDEO_FILE:
@@ -138,6 +142,7 @@ def get_lift():
         get_ir = True
         while get_ir:
             time.sleep(0.1)
+        print("Survived condition check")
         # ir_frame, depth_frame = read_kinect_images()
         # cv2.imwrite("potato.png", ir_frame)
         # print(ir_frame)
