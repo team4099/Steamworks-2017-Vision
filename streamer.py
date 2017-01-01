@@ -44,6 +44,7 @@ def encode_frame(image, quality=30):
     :param quality: Percentage of quality to preserve (inverse of compression amount)
     :return: JPEG bytes of image given
     """
+    image = numpy.copy(image)
     lined_image1 = cv2.line(image, (30, 0), (30, 480), (255, 0, 119), thickness=4, lineType=cv2.LINE_AA)
     lined_image2 = cv2.line(lined_image1, (40, 0), (40, 480), (255, 0, 119), thickness=4, lineType=cv2.LINE_AA)
     ret, jpeg = cv2.imencode(".jpg", lined_image2, [cv2.IMWRITE_JPEG_QUALITY, quality])
