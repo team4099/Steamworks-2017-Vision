@@ -67,14 +67,14 @@ def blur_image(src, radius):
     return cv2.blur(src, (ksize, ksize), round(radius))
 
 
-def lift_binary_threshold(src):
+def lift_binary_threshold(src, threshold):
     """
     Uses OpenCV binary threshold to zero pixels below certain value and white the rest. Works on grayscale images.
     Used for locating LIFT on AIRSHIP given a blurred IR image.
     :param src: image to threshold (grayscale, usually IR image)
     :return: thresholded image
     """
-    return cv2.threshold(src, 15, 255, cv2.THRESH_BINARY)[1]
+    return cv2.threshold(src, threshold, 255, cv2.THRESH_BINARY)[1]
 
 
 def gear_hsv_threshold(src):
@@ -149,7 +149,7 @@ def distance_squared(p1, p2):
     return sum((c1 - c2) ** 2 for c1, c2 in zip(p1, p2))
 
 
-def get_lift_position_from_src(src):
+def get_lift_position_from_src(src, threshold):
     """
     Given a source image, gets the position of two reflective tapes (the LIFT). Uses above functions to achieve this.
     Pairing is done if there are 3 or 4 pieces of reflective tape in the image - that means 2 sides of the AIRSHIP are
@@ -159,7 +159,7 @@ def get_lift_position_from_src(src):
     """
     blur = blur_image(src, 3)
 
-    threshold = lift_binary_threshold(blur)
+    threshold = lift_binary_threshold(blur, threshold)
     cv2.imwrite("output/threshold.png", threshold)
 
     contours = get_contours(threshold)
@@ -271,7 +271,7 @@ def angle_at_x(x_value):
     return (x_value / IMAGE_WIDTH_PX) * FOV_OF_CAMERA
 
 
-def get_lift_info(image, depth):
+def get_lift_info(image, depth, threshold=25):
     """
     Calculates offset angle, turning angle, and distance to LIFT given IR image and depth data
     :param image: Kinect IR image containing 2 pieces of reflective tape
@@ -280,7 +280,7 @@ def get_lift_info(image, depth):
     """
     # cv2.imwrite("output/ir.png", image)
     # cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
-    position = get_lift_position_from_src(image)
+    position = get_lift_position_from_src(image, threshold)
     depth_at_1 = depth_at_pixel(depth, position[0], side_step=1)
     depth_at_2 = depth_at_pixel(depth, position[1])
     angle_at_1 = angle_at_x(position[0][0])
@@ -288,6 +288,12 @@ def get_lift_info(image, depth):
     offset_angle = math.degrees(get_offset_angle(depth_at_1, depth_at_2, angle_at_1, angle_at_2))
     turning_angle = math.degrees(get_turning_angle((position[0][0] + position[1][0]) / 2))
     return {"offset": offset_angle, "turn": turning_angle, "distance": (depth_at_1 + depth_at_2) / 2}
+
+
+def get_lift_info_just_depth(depth):
+    depth_image = cv2.bitwise_not(pretty_depth_cv(numpy.copy(depth)))[0:480, 0:630]
+    cv2.imwrite("output/inverted_depth" + str(int(time.time())) + ".png", depth_image)
+    return get_lift_info(depth_image, depth, threshold=150)
 
 
 def get_gear_info(image, depth):
@@ -334,6 +340,7 @@ def main():
     import streamer
     # rgb, image, depth = streamer.read_kinect_images()
     rgb = streamer.read_kinect_images(ir=False)
+    # time.sleep(1)
     image, depth = streamer.read_kinect_images(ir=True)
     cv2.imwrite("output/ir" + str(int(time.time())) + ".png", image)
     cv2.imwrite("output/rgb" + str(int(time.time())) + ".png", rgb)
@@ -343,7 +350,7 @@ def main():
     # image = cv2.cvtColor(cv2.imread("output/ir.png"), cv2.COLOR_BGR2GRAY)
     # print(depth)
     # rgb = cv2.imread("output/rgb1486163995.png")
-    # print("lift:", get_lift_info(image, depth))
+    # print("lift:", get_lift_info_just_depth(depth))
     # print("gear:", get_gear_info(rgb, depth))
 
 if __name__ == "__main__":

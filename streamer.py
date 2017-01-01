@@ -150,8 +150,13 @@ def get_lift():
         # print(info)
         return ",".join([str(info["offset"]), str(info["turn"]), str(info["distance"])])
     except vision_processing.LiftNotFoundException:
-        print("No lift found")
-        return "-1", 503
+        print("No lift found, trying just depth")
+        try:
+            info = vision_processing.get_lift_info_just_depth(depth_frame)
+            return ",".join([str(info["offset"]), str(info["turn"]), str(info["distance"])])
+        except Exception as e:
+            print("Tried to do it as depth and didn't work", e)
+            return "-1", 503
     except vision_processing.TooMuchInterferenceException:
         print("No lift found (too much interference)")
         return "-1", 503
