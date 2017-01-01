@@ -11,15 +11,14 @@ import cv2
 import time
 
 app = Flask(__name__)
-process_flag = False
 process_frame = None
 depth_frame = None
+ir_frame = None
 
 last_frame_sent = 0
 
 
-def get_frame():
-    image = read_kinect_image()
+def get_frame(image):
     # print(image)
     # We are using Motion JPEG, but OpenCV defaults to capture raw images,
     # so we must encode it into JPEG in order to correctly display the
@@ -58,12 +57,12 @@ def read_kinect_image(ir=False):
         return process_frame, real_depth
 
 def gen(write_flag=False):
-    global last_frame_sent
+    global last_frame_sent, process_frame, depth_frame, ir_frame
     while True:
-        frame = get_frame()
-        if write_flag:
-            cv2.imwrite("to_process.png", frame)
-        if time.time() - last_frame_sent > 1/15:
+        process_frame = read_kinect_image()
+        frame = get_frame(process_frame) 
+        ir_frame, depth_frame = read_kinect_image(ir=True)
+        if time.time() - last_frame_sent > 1/35:
             last_frame_sent = time.time()
             yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
@@ -79,6 +78,7 @@ def video_feed():
 def index():
     return render_template('index.html')
 
+    global process_frame, depth_frame
 
 @app.route('/get_peg')
 def get_peg():
@@ -92,10 +92,11 @@ def get_peg():
                 offset_angle,turn_angle,distance
 
     """
-    frame, depth = read_kinect_image(ir=True)
+    global ir_frame, depth_frame
+    print("gotten the pegerino?")
     try:
         # print(frame)
-        info = vision_processing.get_peg_info(frame, depth)
+        info = vision_processing.get_peg_info(ir_frame, depth_frame)
         # print(info)
         return ",".join([str(info["offset"]), str(info["turn"]), str(info["distance"])])
     except vision_processing.GoalNotFoundException:
@@ -107,8 +108,8 @@ def get_peg():
     except FileNotFoundError:
         print("No file found")
         return "-1", 503
-    except Exception:
-        print("something has gone horribly wrong")
+    except Exception as e:
+        print("something has gone horribly wrong", e)
         return "-1", 503
 
 
@@ -122,10 +123,9 @@ def get_gear():
                 turn_angle,distance
 
     """
-    frame = read_kinect_image()
-    depth = read_kinect_image(ir=True)[1]
+    global process_frame, depth_frame
     try:
-        info = vision_processing.get_gear_info(frame, depth)
+        info = vision_processing.get_gear_info(process_frame, depth_frame)
         return ",".join([str(info["turn"]), str(info["distance"])])
     except vision_processing.GearNotFoundException:
         print("No gear found")

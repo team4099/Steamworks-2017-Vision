@@ -300,8 +300,8 @@ def main():
     cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
     numpy.save("depth.npy", depth)
     print(depth)
-    position = get_peg_info(image, depth)
-    print("position:", position)
+    # position = get_peg_info(image, depth)
+    # print("position:", position)
     print(get_gear_info(rgb, depth))
 
 if __name__ == '__main__':
