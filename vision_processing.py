@@ -17,6 +17,7 @@ from itertools import combinations
 import time
 from frame_convert2 import *
 import freenect
+import os
 
 DISTANCE_LIFT_TAPE_METERS = 0.26  # outside edges
 FOV_OF_CAMERA = math.radians(57)

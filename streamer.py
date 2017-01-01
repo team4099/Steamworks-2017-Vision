@@ -18,6 +18,9 @@ from frame_convert2 import *
 import cv2
 import time
 import traceback
+import os
+import sys
+import subprocess
 
 SPF = 1 / 30
 FRAMES_PER_VIDEO_FILE = SPF * 15
@@ -45,8 +48,8 @@ def encode_frame(image, quality=30):
     :return: JPEG bytes of image given
     """
     image = numpy.copy(image)
-    lined_image1 = cv2.line(image, (307, 0), (196, 480), (255, 0, 119), thickness=4, lineType=cv2.LINE_AA)
-    lined_image2 = cv2.line(lined_image1, (312, 0), (406, 480), (255, 0, 119), thickness=4, lineType=cv2.LINE_AA)
+    lined_image1 = cv2.line(image, (258, 0), (86, 480), (255, 0, 119), thickness=4, lineType=cv2.LINE_AA)
+    lined_image2 = cv2.line(lined_image1, (308, 0), (522, 480), (255, 0, 119), thickness=4, lineType=cv2.LINE_AA)
     ret, jpeg = cv2.imencode(".jpg", lined_image2, [cv2.IMWRITE_JPEG_QUALITY, quality])
     return jpeg.tobytes()
 
@@ -93,23 +96,19 @@ def gen():
     global last_frame_sent, rgb_frame, frames_stored, get_ir, ir_frame, depth_frame
     while True:
         # frames_stored += 1
-        if get_ir:
-            ir_frame, depth_frame = read_kinect_images(ir=True)
-            get_ir = False
-        # ir_frame, depth_frame = read_kinect_images()
-        if time.time() - last_frame_sent > SPF:
-            rgb_frame = read_kinect_images(ir=False)
-            frame = encode_frame(rgb_frame)
-            last_frame_sent = time.time()
-            # if frames_stored > FRAMES_PER_VIDEO_FILE:
-            #     frames_stored = 0
-            #     rgb_writer.open("log/rgb" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), SPF)
-            #     depth_writer.open("log/depth" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), SPF)
-            #     ir_writer.open("log/ir" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), SPF)
-            # rgb_writer.write(rgb_frame)
-            # depth_writer.write(pretty_depth_cv(depth_frame))
-            # ir_writer.write(ir_frame)
-            yield (b"--frame\nContent-Type: image/jpeg\n\n" + frame + b"\n\r\n")
+        try:
+            if get_ir:
+                ir_frame, depth_frame = read_kinect_images(ir=True)
+                get_ir = False
+            if time.time() - last_frame_sent > SPF:
+                rgb_frame = read_kinect_images(ir=False)
+                frame = encode_frame(rgb_frame)
+                last_frame_sent = time.time()
+                yield (b"--frame\nContent-Type: image/jpeg\n\n" + frame + b"\n\r\n")
+        except:
+            print("it died pls")
+            restart()
+            pass
 
 
 @app.route("/video_feed")
@@ -188,6 +187,9 @@ def get_gear():
         traceback.print_exc()
         return "-1", 503
 
+@app.route("/restart")
+def restart():
+    return subprocess.check_output(['/sbin/initctl', 'restart', 'vision']), 500
 
 @app.errorhandler(Exception)
 def all_exception_handler(error):
