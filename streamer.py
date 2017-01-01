@@ -9,6 +9,7 @@ import freenect
 from frame_convert2 import *
 import cv2
 import time
+import traceback
 
 app = Flask(__name__)
 process_frame = None
@@ -110,6 +111,7 @@ def get_peg():
         return "-1", 503
     except Exception as e:
         print("something has gone horribly wrong", e)
+        traceback.print_exc()
         return "-1", 503
 
 
@@ -135,6 +137,7 @@ def get_gear():
         return "-1", 503
     except Exception as e:
         print("something has gone horribly wrong", e)
+        traceback.print_exc()
         return "-1", 503
 
 

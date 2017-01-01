@@ -138,13 +138,13 @@ def get_peg_position_from_src(src):
     blur = gaussian_blur(src, 5)
 
     threshold = peg_binary_threshold(blur)
-    cv2.imwrite("output/threshold.png", threshold)
+    # cv2.imwrite("output/threshold.png", threshold)
 
     contours = get_contours(threshold)
     filtered_contours = peg_filter_contours(contours)
-    contour_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(contour_drawn, filtered_contours, -1, (0,255,0), 3)
-    cv2.imwrite("output/contoured.png", contour_drawn)
+    # contour_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
+    # cv2.drawContours(contour_drawn, filtered_contours, -1, (0,255,0), 3)
+    # cv2.imwrite("output/contoured.png", contour_drawn)
  
     rectangles = []
     
@@ -159,7 +159,7 @@ def get_peg_position_from_src(src):
         raise TooMuchInterferenceException("why is everything reflective :/")
 
     rectangles.sort()
-    print("rectangles:", rectangles)
+    # print("rectangles:", rectangles)
 
     if len(rectangles) == 3:
         combos = list(combinations((0, 1, 2), 2))
@@ -225,8 +225,8 @@ def angle_at_x(x_value):
 
 def get_peg_info(image, depth):
     # print("potato")
-    cv2.imwrite("output/ir.png", image)
-    cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
+    # cv2.imwrite("output/ir.png", image)
+    # cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
     position = get_peg_position_from_src(image)
     depth_at_1 = depth_at_pixel(depth, position[0], side_direction=1)
     depth_at_2 = depth_at_pixel(depth, position[1])
