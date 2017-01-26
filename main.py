@@ -2,6 +2,9 @@
 """
 Code originally from GRIP
 """
+
+DISTANCE_LIFT_TAPE = 10.25	#outside edges
+
 def gaussian_blur(src):
     radius = 3
 	ksize = int(6 * round(radius) + 1)
@@ -48,6 +51,16 @@ def hulls(input_contours):
 
 def get_position_from_src(src):
     hull_position = hulls(filter_contours(get_contours(hsv_threshold(blur(src)))))
+
+def find_turning_angle(to_target_edge, left_distance, right_distance):
+	"""
+	Params:
+	to_target_edget = angle from front of robot to the nearest tape
+	left_distance and right_distance = distance from robot to left/right tape
+	"""
+    sides = (left_distance ** 2 + right_distance ** 2 - DISTANCE_LIFT_TAPE ** 2) / 2 * left_distance * right_distance
+    theta = numpy.arccos(sides)
+    return to_target_edge + theta/2
 
 def main():
     
