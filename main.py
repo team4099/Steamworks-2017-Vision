@@ -5,10 +5,11 @@ Code originally from GRIP
 import cv2
 import numpy
 import freenect
+from itertools import combinations
 from frame_convert2 import *
 
 
-DISTANCE_LIFT_TAPE = 10.25	#outside edges
+DISTANCE_LIFT_TAPE = 10.25  #outside edges
 
 class TooMuchInterferenceException(Exception):
     """
@@ -38,6 +39,7 @@ def read_kinect_image(ir=False):
         # ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
         # cv2.imwrite("temp_video.png", ir_feed[1])
         depth_accumulator = freenect.sync_get_depth()[0]
+        real_depth = numpy.copy(depth_accumulator)
         depth_accumulator[depth_accumulator > 2046] = 0
         for i in range(10):
             # print(depth_accumulator)
@@ -48,7 +50,7 @@ def read_kinect_image(ir=False):
         ir_feed = numpy.bitwise_and(depth_accumulator.astype(numpy.uint8), numpy.array(ir_feed[1])).astype(numpy.uint8)
         # cv2.imwrite("thing.png", frame_convert.pretty_depth_cv(ir_feed))
         process_frame = pretty_depth_cv(ir_feed)
-        return process_frame
+        return process_frame, real_depth
 
 def combine_depth_frames(frame1, frame2):
     frame2[frame2 > 2046] = 0
@@ -59,6 +61,9 @@ def gaussian_blur(src):
     ksize = int(6 * round(radius) + 1)
     return cv2.GaussianBlur(src, (ksize, ksize), round(radius))
 
+def binary_threshold(src):
+    return cv2.threshold(src, 20, 255, cv2.THRESH_BINARY)[1]
+
 def hsv_threshold(src):
     hue, sat, val = [(0, 180), (0, 0), (128, 255)]
     out = cv2.cvtColor(src, cv2.COLOR_BGR2HSV)
@@ -68,7 +73,7 @@ def get_contours(src):
     mode = cv2.RETR_EXTERNAL
     method = cv2.CHAIN_APPROX_SIMPLE
     im2, contours, hierarchy = cv2.findContours(src, mode=mode, method=method)
-    print(len(contours))
+    print("len of contours:", len(contours))
     return contours
 
 def filter_contours(input_contours):
@@ -100,7 +105,7 @@ def find_hulls(input_contours):
     return [cv2.convexHull(contour) for contour in input_contours]
 
 def sort_hulls(input_hulls):
-
+    pass
 
 def get_corners_from_contours(contours, corner_amount=4):
     """
@@ -117,16 +122,16 @@ def get_corners_from_contours(contours, corner_amount=4):
         # print(contours)
         epsilon = coefficient * cv2.arcLength(contours, True)
         # epsilon =
-        # print("epsilon:", epsilon)
+        print("epsilon:", epsilon)
         poly_approx = cv2.approxPolyDP(contours, epsilon, True)
         hull = cv2.convexHull(poly_approx)
         if len(hull) == corner_amount:
             return hull
         else:
             if len(hull) > corner_amount:
-                coefficient += .01
+                coefficient += .001
             else:
-                coefficient -= .01
+                coefficient -= .001
 
 def get_center(corners):
     """
@@ -171,59 +176,83 @@ def sort_hulls_by_corners(corner_set):
     return sorted(range(len(corner_set)), key=lambda i: corner_set[i][0][0][1])
 
 def filter_hulls_by_y_position(corner_set, offset=50):
-    median_y = numpy.median([corner_set[i][0][1] for i in range(len(corner_set))])
-    return [i for i, corner in enumerate(corner_set) if abs(corner[0][1] - median_y) <= offset]
+    print(corner_set)
+    median_y = numpy.median([corner_set[i][0][0][0] for i in range(len(corner_set))])
+    return [i for i, corner in enumerate(corner_set) if abs(corner[0][0][0] - median_y) > offset]
 
-def get_position_from_src(src, depth):
+def distance(p1, p2):
+    return sum((c1 - c2) ** 2 for c1, c2 in zip(p1, p2))
+
+def get_position_from_src(src):
     blur = gaussian_blur(src)
-    contours = get_contours(blur)
+    threshold = binary_threshold(blur)
+    contours = get_contours(threshold)
     filtered_contours = filter_contours(contours)
     hulls = find_hulls(filtered_contours)
     sorted_corners_for_each_hull = []
 
+    contour_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
+    cv2.drawContours(contour_drawn, hulls, -1, (0,255,0), 3)
+    cv2.imwrite("contoured.png", contour_drawn)
+    cv2.imwrite("threshold.png", threshold)
+    # print(hulls)
+
     for hull in hulls:
-        sorted_corners_for_each_hull.append(sort_corners(get_corners_from_contours(hull)))
+        corners = get_corners_from_contours(hull)
+        sorted_corners_for_each_hull.append(sort_corners(corners, get_center(corners)))
 
     for i in filter_hulls_by_y_position(sorted_corners_for_each_hull)[::-1]:
         del sorted_corners_for_each_hull[i]
 
+
     if len(sorted_corners_for_each_hull) < 2:
-        raise GoalNotFoundException()
+        raise GoalNotFoundException("yo no goals")
     elif len(sorted_corners_for_each_hull) > 4:
         raise TooMuchInterferenceException()
 
     order_of_hulls = sort_hulls_by_corners(sorted_corners_for_each_hull)
 
     if len(sorted_corners_for_each_hull) == 3:
-        pass
+        combos = combinations((0, 1, 2), 2)
+        pair = min((0, 1, 2), key=lambda i: distance(sorted_corners_for_each_hull[combos[i][0]][0][0], sorted_corners_for_each_hull[combos[i][1]][0][0]))
+        sorted_corners_for_each_hull = [sorted_corners_for_each_hull[pair[0]], sorted_corners_for_each_hull[pair[1]]]
     elif len(sorted_corners_for_each_hull) == 4:
-        pass
-    corner_set1, corner_set2 = sorted_corners_for_each_hull[0][0], sorted_corners_for_each_hull[1][0]
-    final_coordinates = [(corner_set1[0][1] + corner_set1[2][1]) / 2, (corner_set2[1][1] + corner_set2[3][1]) / 2,]
+        combos = combinations((0, 1, 2, 3), 2)
+        pair1 = min(range(len(combos)), key=lambda i: distance(sorted_corners_for_each_hull[combos[i][0]][0][0], sorted_corners_for_each_hull[combos[i][1]][0][0]))
+        pair2 = len(combos) - pair1 - 1
+        size = lambda i: cv2.contourArea(filter_contours[order_of_hulls[i]])
+        if size(pair1[0]) + size(pair1[1]) > size(pair2[0]) + size(pair2[1]):
+            sorted_corners_for_each_hull = [sorted_corners_for_each_hull[pair1[0]], sorted_corners_for_each_hull[pair1[1]]]
+        else:
+            sorted_corners_for_each_hull = [sorted_corners_for_each_hull[pair2[0]], sorted_corners_for_each_hull[pair2[1]]]
+    corner_set1, corner_set2 = sorted_corners_for_each_hull[0][0][0], sorted_corners_for_each_hull[1][0][0]
+    final_coordinates = [(corner_set1[0][1] + corner_set1[2][1]) / 2, (corner_set2[1][1] + corner_set2[3][1]) / 2]
 
     # print(len(hull_position))
     return final_coordinates
 
 def find_turning_angle(to_target_edge, left_distance, right_distance):
-	"""
-	Params:
-	to_target_edget = angle from front of robot to the nearest tape
-	left_distance and right_distance = distance from robot to left/right tape
-	"""
+    """
+    Params:
+    to_target_edget = angle from front of robot to the nearest tape
+    left_distance and right_distance = distance from robot to left/right tape
+    """
     sides = (left_distance ** 2 + right_distance ** 2 - DISTANCE_LIFT_TAPE ** 2) / 2 * left_distance * right_distance
     theta = numpy.arccos(sides)
     return to_target_edge + theta/2
 
 def main():
     # while True:
-    image = read_kinect_image(ir=True)
+    # image, depth = read_kinect_image(ir=True)
+    image = cv2.cvtColor(cv2.imread("morepotato.png"), cv2.COLOR_BGR2GRAY)
     # rgb = read_kinect_image(ir=False)
     # image = cv2.imread("potato.png")
     cv2.imwrite("morepotato.png", image)
-    print(image)
-    contoured = numpy.copy(image)
-    cv2.drawContours(contoured, get_position_from_src(image), -1, (0, 254, 0))
-    cv2.imwrite("potato.png", contoured)
+    # print(image)
+    # contoured = numpy.copy(image)
+    print(get_position_from_src(image))
+    # cv2.drawContours(contoured, get_position_from_src(image), -1, (0, 254, 0))
+    # cv2.imwrite("potato.png", contoured)
     # cv2.imshow('potato chip', get_position_from_src(image))
     # cv2.waitKey(10000)
     pass
