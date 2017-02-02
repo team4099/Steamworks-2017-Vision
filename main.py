@@ -235,8 +235,8 @@ def get_position_from_src(src):
     corner_set1, corner_set2 = sorted_corners_for_each_hull[0], sorted_corners_for_each_hull[1]
     print("corner set 1:", corner_set1)
     print("corner set 2:", corner_set2)
-    final_coordinates = [[(corner_set1[0][0][0] + corner_set1[3][0][0]) / 2, (corner_set1[0][0][1] + corner_set1[3][0][1]) / 2],
-                         [(corner_set2[1][0][0] + corner_set2[2][0][0]) / 2, (corner_set2[1][0][1] + corner_set2[2][0][1]) / 2]]
+    final_coordinates = [[int((corner_set1[0][0][0] + corner_set1[3][0][0]) / 2), int((corner_set1[0][0][1] + corner_set1[3][0][1]) / 2)],
+                         [int((corner_set2[1][0][0] + corner_set2[2][0][0]) / 2), int((corner_set2[1][0][1] + corner_set2[2][0][1]) / 2)]]
 
     # print(len(hull_position))
     return final_coordinates
