@@ -173,10 +173,11 @@ def sort_corners(corners, center):
     return numpy.array([tl, tr, br, bl], numpy.float32)
 
 def sort_hulls_by_corners(corner_set):
-    return sorted(range(len(corner_set)), key=lambda i: corner_set[i][0][0][1])
+    print("corner_set[0][0][0][0]:", corner_set[0][0][0][0])
+    return sorted(range(len(corner_set)), key=lambda i: corner_set[i][0][0][0])
 
 def filter_hulls_by_y_position(corner_set, offset=50):
-    print(corner_set)
+    # print(corner_set)
     median_y = numpy.median([corner_set[i][0][0][0] for i in range(len(corner_set))])
     return [i for i, corner in enumerate(corner_set) if abs(corner[0][0][0] - median_y) > offset]
 
@@ -185,16 +186,20 @@ def distance(p1, p2):
 
 def get_position_from_src(src):
     blur = gaussian_blur(src)
+
     threshold = binary_threshold(blur)
+    cv2.imwrite("threshold.png", threshold)
+
     contours = get_contours(threshold)
     filtered_contours = filter_contours(contours)
+    contour_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
+    cv2.drawContours(contour_drawn, filtered_contours, -1, (0,255,0), 3)
+    cv2.imwrite("contoured.png", contour_drawn)
+
     hulls = find_hulls(filtered_contours)
     sorted_corners_for_each_hull = []
 
-    contour_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(contour_drawn, hulls, -1, (0,255,0), 3)
-    cv2.imwrite("contoured.png", contour_drawn)
-    cv2.imwrite("threshold.png", threshold)
+    
     # print(hulls)
 
     for hull in hulls:
@@ -208,9 +213,11 @@ def get_position_from_src(src):
     if len(sorted_corners_for_each_hull) < 2:
         raise GoalNotFoundException("yo no goals")
     elif len(sorted_corners_for_each_hull) > 4:
-        raise TooMuchInterferenceException()
+        raise TooMuchInterferenceException("why is everything reflective :/")
 
     order_of_hulls = sort_hulls_by_corners(sorted_corners_for_each_hull)
+    print("order of hulls:", order_of_hulls)
+    print("corners:", sorted_corners_for_each_hull)
 
     if len(sorted_corners_for_each_hull) == 3:
         combos = combinations((0, 1, 2), 2)
@@ -225,8 +232,11 @@ def get_position_from_src(src):
             sorted_corners_for_each_hull = [sorted_corners_for_each_hull[pair1[0]], sorted_corners_for_each_hull[pair1[1]]]
         else:
             sorted_corners_for_each_hull = [sorted_corners_for_each_hull[pair2[0]], sorted_corners_for_each_hull[pair2[1]]]
-    corner_set1, corner_set2 = sorted_corners_for_each_hull[0][0][0], sorted_corners_for_each_hull[1][0][0]
-    final_coordinates = [(corner_set1[0][1] + corner_set1[2][1]) / 2, (corner_set2[1][1] + corner_set2[3][1]) / 2]
+    corner_set1, corner_set2 = sorted_corners_for_each_hull[0], sorted_corners_for_each_hull[1]
+    print("corner set 1:", corner_set1)
+    print("corner set 2:", corner_set2)
+    final_coordinates = [[(corner_set1[0][0][0] + corner_set1[3][0][0]) / 2, (corner_set1[0][0][1] + corner_set1[3][0][1]) / 2],
+                         [(corner_set2[1][0][0] + corner_set2[2][0][0]) / 2, (corner_set2[1][0][1] + corner_set2[2][0][1]) / 2]]
 
     # print(len(hull_position))
     return final_coordinates
@@ -247,7 +257,7 @@ def main():
     image = cv2.cvtColor(cv2.imread("morepotato.png"), cv2.COLOR_BGR2GRAY)
     # rgb = read_kinect_image(ir=False)
     # image = cv2.imread("potato.png")
-    cv2.imwrite("morepotato.png", image)
+    # cv2.imwrite("morepotato.png", image)
     # print(image)
     # contoured = numpy.copy(image)
     print(get_position_from_src(image))
