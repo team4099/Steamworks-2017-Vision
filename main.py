@@ -9,12 +9,15 @@
 """
 import cv2
 import numpy
+import math
 import freenect
 from itertools import combinations
 from frame_convert2 import *
 
 
-DISTANCE_LIFT_TAPE = 10.25  #outside edges
+DISTANCE_LIFT_TAPE_METERS = 0.26  #outside edges
+FOV_OF_CAMERA = math.radians(57)
+IMAGE_WIDTH_PX = 640
 
 class TooMuchInterferenceException(Exception):
     """
@@ -113,7 +116,7 @@ def y_filter_rectangles(rectangles, offset=100):
     return list(filter(lambda rectangle: abs(rectangle[1] - median_y) <= offset, rectangles))
 
 def distance(p1, p2):
-    print(p1, p2)
+    print("p1, p2:", p1, p2)
     return sum((c1 - c2) ** 2 for c1, c2 in zip(p1, p2))
 
 def get_position_from_src(src):
@@ -176,10 +179,27 @@ def get_turning_angle(to_target_edge, left_distance, right_distance):
     to_target_edge = angle from front of robot to the nearest tape
     left_distance and right_distance = distance from robot to left/right tape
     """
-    sides = (left_distance ** 2 + right_distance ** 2 - DISTANCE_LIFT_TAPE ** 2) / (2 * left_distance * right_distance)
+    sides = (left_distance ** 2 + right_distance ** 2 - DISTANCE_LIFT_TAPE_METERS ** 2) / (2 * left_distance * right_distance)
     theta = numpy.arccos(sides)
     return to_target_edge + theta/2
 
+def get_offset_angle(distance_1, distance_2, angle_1, angle_2):
+    f = (FOV_OF_CAMERA / 2)
+    return numpy.arcsin((distance_2 - (distance_1 * numpy.cos(f - angle_1) / numpy.cos(f - angle_2))) * numpy.cos(f - angle_2) / DISTANCE_LIFT_TAPE_METERS)
+
+def kinect_depth_to_meters(kinect_depth):
+    return 1 / (3.14674327 + -0.0028990952 * kinect_depth)
+
+def depth_at_pixel(depth_array, pixel, direction=1):
+    pixel = numpy.copy(pixel)
+    while pixel[1] > 0 and pixel[1] < depth_array.shape[0] and depth_array[pixel[1], pixel[0]] == 2047:
+        pixel[1] += direction
+    print("raw depth:", depth_array[pixel[1], pixel[0]])
+    return kinect_depth_to_meters(depth_array[pixel[1], pixel[0]])
+
+def angle_at_x(x_value):
+    return (x_value / IMAGE_WIDTH_PX) * FOV_OF_CAMERA
+    
 def main():
     # while True:
     # image, depth = read_kinect_image(ir=True)
@@ -187,9 +207,29 @@ def main():
     # cv2.imwrite("output/depth.png", pretty_depth_cv(depth))
     # numpy.save("depth.npy", depth)
     depth = numpy.load("depth.npy")
+    for i in range(len(depth)):
+        for j in range(len(depth[0])):
+            if depth[i][j] == 255:
+                depth[i][j] = 2047
+            else:
+                depth[i][j] *= 4
+    # print(depth)
     image = cv2.cvtColor(cv2.imread("output/ir.png"), cv2.COLOR_BGR2GRAY)
     # rgb = read_kinect_image(ir=False)
-    print(get_position_from_src(image))
+    position = get_position_from_src(image)
+    print("position:", position)
+    depth_at_1 = depth_at_pixel(depth, position[0])
+    depth_at_2 = depth_at_pixel(depth, position[1])
+    print("depth at coord1:", depth_at_1)
+    print("depth at coord2:", depth_at_2)
+    angle_at_1 = angle_at_x(position[0][0])
+    angle_at_2 = angle_at_x(position[1][0])
+    print("angle at 1:", math.degrees(angle_at_1))
+    print("angle_at_2:", math.degrees(angle_at_2))
+    offset_angle = math.degrees(get_offset_angle(depth_at_1, depth_at_2, angle_at_1, angle_at_2))
+    print("offset angle:", offset_angle)
+    turning_angle = math.degrees(get_turning_angle(angle_at_2, depth_at_1, depth_at_2))
+    print("turning_angle:", turning_angle)
 
 if __name__ == '__main__':
     main()
