@@ -255,7 +255,7 @@ def is_in_ellipse(ellipse, point):
     return A * x ** 2 + B * x * y + C * y ** 2 + D * x + E * y + F <= 0
 
 
-def get_gear_info(image):
+def get_gear_info(image, depth):
     # orig_image = numpy.copy(image)
     blur = gaussian_blur(image, 5)
     threshold = gear_hsv_threshold(blur)
@@ -288,8 +288,8 @@ def get_gear_info(image):
     # cv2.imwrite("output/trash.png", trash)
 
     return {
-            "turn": math.degrees(get_turning_angle(ellipses[best_index][0][0]))
-            #"distance": kinect_depth_to_meters(depth_at_pixel(depth, ellipses[best_index][0]))
+            "turn": math.degrees(get_turning_angle(ellipses[best_index][0][0])),
+            "distance": kinect_depth_to_meters(depth_at_pixel(depth, ellipses[best_index][0]))
            }
 
 
