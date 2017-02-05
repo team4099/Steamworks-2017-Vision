@@ -207,12 +207,12 @@ def kinect_depth_to_meters(kinect_depth):
 
 def depth_at_pixel(depth_array, pixel, direction=1, side_direction=-1):
     new_pixel = numpy.copy(pixel)
-    while 0 < new_pixel[1] < depth_array.shape[0] - 1 and depth_array[new_pixel[1], new_pixel[0]] == 2047:
+    while 0 < new_pixel[1] < depth_array.shape[0] - 1 and depth_array[new_pixel[1], new_pixel[0]] == 0:
         # print("stuck in first loop here :/")
         new_pixel[1] += direction
-    if depth_array[new_pixel[1], new_pixel[0]] == 2047:
+    if depth_array[new_pixel[1], new_pixel[0]] == 0:
         new_pixel = numpy.copy(pixel)
-        while 0 < new_pixel[0] < depth_array.shape[1] - 1 and depth_array[new_pixel[1], new_pixel[0]] == 2047:
+        while 0 < new_pixel[0] < depth_array.shape[1] - 1 and depth_array[new_pixel[1], new_pixel[0]] == 0:
             new_pixel[0] += side_direction
             # print("stuck in first loop here :)")    
     # print("raw depth:", depth_array[new_pixel[1], new_pixel[0]])
@@ -297,6 +297,7 @@ def test_ellipse_stuff(size, ellipse):
     for i in range(size[0]):
         for j in range(size[1]):
             is_in_ellipse(ellipse, (i, j))
+
 
 def main():
     # while True:
