@@ -49,12 +49,12 @@ def read_kinect_image(ir=False):
         # ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
         # cv2.imwrite("temp_video.png", ir_feed[1])
         depth_accumulator = freenect.sync_get_depth()[0]
-        real_depth = numpy.copy(depth_accumulator)
-        print(real_depth)
+        # print(real_depth)
         depth_accumulator[depth_accumulator > 2046] = 0
         for i in range(10):
             # print(depth_accumulator)
             depth_accumulator = combine_depth_frames(depth_accumulator, freenect.sync_get_depth()[0])
+        real_depth = numpy.copy(depth_accumulator)
         depth_accumulator[depth_accumulator > 0] = 255
         # print(ir_feed)
         # depth_accumulator = depth_accumulator.astype()
@@ -128,7 +128,8 @@ def get_gear():
                 turn_angle,distance
 
     """
-    frame, depth = read_kinect_image(ir=True)
+    frame = read_kinect_image()
+    depth = read_kinect_image(ir=True)[1]
     try:
         info = vision_processing.get_gear_info(frame, depth)
         return ",".join([str(info["turn"]), str(info["distance"])])
