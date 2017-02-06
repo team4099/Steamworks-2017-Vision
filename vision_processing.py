@@ -256,7 +256,6 @@ def is_in_ellipse(ellipse, point):
 
 
 def get_gear_info(image, depth):
-    # orig_image = numpy.copy(image)
     blur = gaussian_blur(image, 5)
     threshold = gear_hsv_threshold(blur)
     contours = get_contours(threshold)
@@ -293,54 +292,17 @@ def get_gear_info(image, depth):
            }
 
 
-def test_ellipse_stuff(size, ellipse):
-    for i in range(size[0]):
-        for j in range(size[1]):
-            is_in_ellipse(ellipse, (i, j))
-
-
 def main():
-    # while True:
-    # image, depth = read_kinect_image(ir=True)
-    # rgb = read_kinect_image()
-    # cv2.imwrite("output/ir.png", image)
-    # cv2.imwrite("output/rgb" + str(int(time.time()/1)) + ".png", rgb)
-    # cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
-    # numpy.save("depth.npy", depth)
-    # depth = numpy.load("depth.npy")
-    # for i in range(len(depth)):
-    #     for j in range(len(depth[0])):
-    #         if depth[i][j] == 255:
-    #             depth[i][j] = 2047
-    #         else:
-    #             depth[i][j] *= 4
-    # print(depth)
-    # position = get_position_from_src(image)
-    # print("position:", position)
-    # depth_at_1 = depth_at_pixel(depth, position[0], side_direction=1)
-    # depth_at_2 = depth_at_pixel(depth, position[1])
-    # print("depth at coord1:", depth_at_1)
-    # print("depth at coord2:", depth_at_2)
-    # angle_at_1 = angle_at_x(position[0][0])
-    # angle_at_2 = angle_at_x(position[1][0])
-    # print("angle at 1:", math.degrees(angle_at_1))
-    # print("angle_at_2:", math.degrees(angle_at_2))
-    # offset_angle = math.degrees(get_offset_angle(depth_at_1, depth_at_2, angle_at_1, angle_at_2))
-    # print("offset angle:", offset_angle)
-    # turning_angle = math.degrees(get_turning_angle((position[0][0] + position[1][0]) / 2))
-    # print("turning_angle:", turning_angle)
-    files = glob.glob("output/rgb*")
-    for filerino in files:
-        print()
-        print("**" + filerino + "**")
-        rgb = cv2.imread(filerino)
-        try:
-            # x = timeit.repeat("test_ellipse_stuff((640, 480), ((344.43853759765625, 441.1802673339844), (135.87789916992188, 181.5211944580078), 90.29808044433594))", "from __main__ import test_ellipse_stuff", number=100)
-            # print(x)
-            print(get_gear_info(rgb))
-        except GearNotFoundException:
-            print("No gears found.")
-
+    image, depth = read_kinect_image(ir=True)
+    rgb = read_kinect_image()
+    cv2.imwrite("output/ir.png", image)
+    cv2.imwrite("output/rgb" + str(int(time.time()/1)) + ".png", rgb)
+    cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
+    numpy.save("depth.npy", depth)
+    print(depth)
+    position = get_peg_info(image, depth)
+    print("position:", position)
+    print(get_gear_info(rgb, depth))
 
 if __name__ == '__main__':
     main()

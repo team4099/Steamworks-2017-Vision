@@ -15,18 +15,12 @@ process_flag = False
 process_frame = None
 depth_frame = None
 
-video = cv2.VideoCapture(0)
-video.open(0)
-
 last_frame_sent = 0
 
 
 def get_frame():
-    video.grab()
-    success, image = video.retrieve()
-    # image = read_kinect_image()
+    image = read_kinect_image()
     # print(image)
-    # print(success)
     # We are using Motion JPEG, but OpenCV defaults to capture raw images,
     # so we must encode it into JPEG in order to correctly display the
     # video stream.
