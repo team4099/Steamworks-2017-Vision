@@ -207,16 +207,16 @@ def kinect_depth_to_meters(kinect_depth):
 
 def depth_at_pixel(depth_array, pixel, direction=1, side_direction=-1):
     new_pixel = numpy.copy(pixel)
-    while 0 < new_pixel[1] < depth_array.shape[0] - 1 and depth_array[new_pixel[1], new_pixel[0]] == 0:
+    while 0 < new_pixel[1] < depth_array.shape[0] - 1 and depth_array[int(new_pixel[1]), int(new_pixel[0])] == 0:
         # print("stuck in first loop here :/")
         new_pixel[1] += direction
-    if depth_array[new_pixel[1], new_pixel[0]] == 0:
+    if depth_array[int(new_pixel[1])][int(new_pixel[0])] == 0:
         new_pixel = numpy.copy(pixel)
         while 0 < new_pixel[0] < depth_array.shape[1] - 1 and depth_array[new_pixel[1], new_pixel[0]] == 0:
             new_pixel[0] += side_direction
             # print("stuck in first loop here :)")    
     # print("raw depth:", depth_array[new_pixel[1], new_pixel[0]])
-    return kinect_depth_to_meters(depth_array[new_pixel[1], new_pixel[0]])
+    return kinect_depth_to_meters(depth_array[int(new_pixel[1]), int(new_pixel[0])])
 
 
 def angle_at_x(x_value):
