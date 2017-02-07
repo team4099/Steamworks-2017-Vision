@@ -133,8 +133,8 @@ def get_gear():
     except FileNotFoundError:
         print("No file found")
         return "-1", 503
-    except Exception:
-        print("something has gone horribly wrong")
+    except Exception as e:
+        print("something has gone horribly wrong", e)
         return "-1", 503
 
 if __name__ == '__main__':
