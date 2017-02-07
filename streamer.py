@@ -137,5 +137,11 @@ def get_gear():
         print("something has gone horribly wrong", e)
         return "-1", 503
 
+
+@app.errorhandler(Exception)
+def all_exception_handler(error):
+    print(error)
+    return 'Error', 500
+
 if __name__ == '__main__':
     app.run("0.0.0.0", debug=True, port=8080, threaded=True)
