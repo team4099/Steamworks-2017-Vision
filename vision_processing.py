@@ -16,7 +16,7 @@ from frame_convert2 import *
 import copy
 import time
 import glob
-import timeit
+from timeit import default_timer as timer
 
 
 DISTANCE_LIFT_TAPE_METERS = 0.26  #outside edges
@@ -83,13 +83,13 @@ def combine_depth_frames(frame1, frame2):
     return numpy.bitwise_or(frame1, frame2)
 
 
-def gaussian_blur(src, radius):
+def blur_image(src, radius):
     ksize = int(6 * round(radius) + 1)
-    return cv2.GaussianBlur(src, (ksize, ksize), round(radius))
+    return cv2.blur(src, (ksize, ksize), round(radius))
 
 
-def peg_binary_threshold(src):
-    return cv2.threshold(src, 15, 255, cv2.THRESH_BINARY)[1]
+def lift_binary_threshold(src):
+    return cv2.threshold(src, 30, 255, cv2.THRESH_BINARY)[1]
 
 
 def gear_hsv_threshold(src):
@@ -106,16 +106,16 @@ def get_contours(src):
     return contours
 
 
-def peg_filter_contours(input_contours):
+def lift_filter_contours(input_contours):
     output = []
     for contour in input_contours:
-        x,y,w,h = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
         if area < 100:
             continue
         if len(contour) < 0 or len(contour) > 200:
             # print("too many sides :/", len(contour))
             continue
+        x, y, w, h = cv2.boundingRect(contour)
         ratio = w / h
         if ratio < 0 or ratio > 0.7:
             # print("ur ratio is trash", ratio)
@@ -134,14 +134,14 @@ def distance_squared(p1, p2):
     return sum((c1 - c2) ** 2 for c1, c2 in zip(p1, p2))
 
 
-def get_peg_position_from_src(src):
-    blur = gaussian_blur(src, 5)
+def get_lift_position_from_src(src):
+    blur = blur_image(src, 5)
 
-    threshold = peg_binary_threshold(blur)
-    # cv2.imwrite("output/threshold.png", threshold)
+    threshold = lift_binary_threshold(blur)
+    cv2.imwrite("output/threshold.png", threshold)
 
     contours = get_contours(threshold)
-    filtered_contours = peg_filter_contours(contours)
+    filtered_contours = lift_filter_contours(contours)
     # contour_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
     # cv2.drawContours(contour_drawn, filtered_contours, -1, (0,255,0), 3)
     # cv2.imwrite("output/contoured.png", contour_drawn)
@@ -159,7 +159,6 @@ def get_peg_position_from_src(src):
         raise TooMuchInterferenceException("why is everything reflective :/")
 
     rectangles.sort()
-    # print("rectangles:", rectangles)
 
     if len(rectangles) == 3:
         combos = list(combinations((0, 1, 2), 2))
@@ -176,16 +175,10 @@ def get_peg_position_from_src(src):
             rectangles = [rectangles[combos[pair2][0]], rectangles[combos[pair2][1]]]
 
     corner_set1, corner_set2 = rectangles[0], rectangles[1]
-    # print("corner set 1:", corner_set1)
-    # print("corner set 2:", corner_set2)
+
     final_coordinates = [[int(corner_set1[0]), int(corner_set1[1] + corner_set1[3] / 2)],
                          [int(corner_set2[0] + corner_set2[2]), int(corner_set2[1] + corner_set2[3] / 2)]]
 
-    rectangles_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
-    for rectangle in rectangles:
-        cv2.rectangle(rectangles_drawn, (rectangle[0], rectangle[1]), (rectangle[0] + rectangle[2], rectangle[1] + rectangle[3]), (255, 0, 0), 2)
-    # cv2.imwrite("output/rectangles.png", rectangles_drawn)
-    # print(len(hull_position))
     return final_coordinates
 
 
@@ -195,9 +188,6 @@ def get_turning_angle(center_x):
 
 def get_offset_angle(distance_1, distance_2, angle_1, angle_2):
     f = (FOV_OF_CAMERA / 2)
-    # if distance_1 > distance_2:
-    #     distance_1, distance_2 = distance_2, distance_1
-    #     angle_1, angle_2 = angle_2, angle_1
     return numpy.arcsin((distance_2 - (distance_1 * numpy.cos(f - angle_1) / numpy.cos(f - angle_2))) * numpy.cos(f - angle_2) / DISTANCE_LIFT_TAPE_METERS)
 
 
@@ -223,47 +213,28 @@ def angle_at_x(x_value):
     return (x_value / IMAGE_WIDTH_PX) * FOV_OF_CAMERA
 
 
-def get_peg_info(image, depth):
+def get_lift_info(image, depth):
     # print("potato")
     # cv2.imwrite("output/ir.png", image)
     # cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
-    position = get_peg_position_from_src(image)
+    position = get_lift_position_from_src(image)
     depth_at_1 = depth_at_pixel(depth, position[0], side_direction=1)
     depth_at_2 = depth_at_pixel(depth, position[1])
     angle_at_1 = angle_at_x(position[0][0])
     angle_at_2 = angle_at_x(position[1][0])
     offset_angle = math.degrees(get_offset_angle(depth_at_1, depth_at_2, angle_at_1, angle_at_2))
     turning_angle = math.degrees(get_turning_angle((position[0][0] + position[1][0]) / 2))
+    end = timer()
     return {"offset": offset_angle, "turn": turning_angle, "distance": (depth_at_1 + depth_at_2) / 2}
 
 
-def is_in_ellipse(ellipse, point):
-    x, y = point
-    xc = ellipse[0][0]
-    yc = ellipse[0][1]
-    a = ellipse[1][0] / 2
-    b = ellipse[1][1] / 2
-    theta = math.radians(ellipse[2])
-    sint = numpy.sin(theta)
-    cost = numpy.cos(theta)
-    A = a ** 2 * sint ** 2 + b ** 2 * cost ** 2
-    B = 2 * (b ** 2 - a ** 2) * sint * cost
-    C = a ** 2 * cost ** 2 + b ** 2 * sint ** 2
-    D = -2 * A * xc - B * yc
-    E = -B * xc - 2 * C * yc
-    F = A * xc ** 2 + B * xc * yc + C * yc ** 2 - a ** 2 * b ** 2
-    return A * x ** 2 + B * x * y + C * y ** 2 + D * x + E * y + F <= 0
-
-
 def get_gear_info(image, depth):
-    blur = gaussian_blur(image, 5)
+    blur = blur_image(image, 5)
     threshold = gear_hsv_threshold(blur)
     contours = get_contours(threshold)
     hulls = [cv2.convexHull(contour) for contour in contours if cv2.contourArea(contour) >= 100]
-
     if len(hulls) == 0:
         raise GearNotFoundException("No hulls found :(")
-
     ellipses = [cv2.fitEllipse(hull) for hull in hulls]
     best_index = 0
     fit_number = float("inf")
@@ -282,10 +253,9 @@ def get_gear_info(image, depth):
         if curr_fit < fit_number:
             fit_number = curr_fit
             best_index = i
-        print("ellipse:", ellipse)
-        print("ratio:", curr_fit)
+        # print("ellipse:", ellipse)
+        # print("ratio:", curr_fit)
     # cv2.imwrite("output/trash.png", trash)
-
     return {
             "turn": math.degrees(get_turning_angle(ellipses[best_index][0][0])),
             "distance": kinect_depth_to_meters(depth_at_pixel(depth, ellipses[best_index][0]))
@@ -295,13 +265,16 @@ def get_gear_info(image, depth):
 def main():
     image, depth = read_kinect_image(ir=True)
     rgb = read_kinect_image()
-    cv2.imwrite("output/ir.png", image)
-    cv2.imwrite("output/rgb" + str(int(time.time()/1)) + ".png", rgb)
-    cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
-    numpy.save("depth.npy", depth)
-    print(depth)
-    # position = get_peg_info(image, depth)
-    # print("position:", position)
+    # cv2.imwrite("output/ir.png", image)
+    # cv2.imwrite("output/rgb" + str(int(time.time()/1)) + ".png", rgb)
+    # cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
+    # numpy.save("depth.npy", depth)
+    # depth = numpy.load("depth.npy")
+    # image = cv2.cvtColor(cv2.imread("output/ir.png"), cv2.COLOR_BGR2GRAY)
+    # print(depth)
+    # rgb = cv2.imread("output/rgb1486163995.png")
+    position = get_lift_info(image, depth)
+    print("position:", position)
     print(get_gear_info(rgb, depth))
 
 if __name__ == '__main__':
