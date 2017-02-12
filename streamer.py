@@ -12,7 +12,7 @@ import time
 import traceback
 
 app = Flask(__name__)
-process_frame = None
+rgb_frame = None
 depth_frame = None
 ir_frame = None
 
@@ -24,7 +24,7 @@ def get_frame(image):
     # We are using Motion JPEG, but OpenCV defaults to capture raw images,
     # so we must encode it into JPEG in order to correctly display the
     # video stream.
-    ret, jpeg = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 50])
+    ret, jpeg = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 30])
     return jpeg.tobytes()
 
 
@@ -33,36 +33,33 @@ def combine_depth_frames(frame1, frame2):
     return numpy.bitwise_or(frame1, frame2)
 
 
-def read_kinect_image(ir=False):
-    if not ir:
-        return video_cv(freenect.sync_get_video()[0])
-    else:
-        ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
-        ir_feed = ir_feed[1], ir_feed[0]
-        # depth_feed = freenect.sync_get_depth()
-        # ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
-        # cv2.imwrite("temp_video.png", ir_feed[1])
-        depth_accumulator = freenect.sync_get_depth()[0]
-        # print(real_depth)
-        depth_accumulator[depth_accumulator > 2046] = 0
-        for i in range(10):
-            # print(depth_accumulator)
-            depth_accumulator = combine_depth_frames(depth_accumulator, freenect.sync_get_depth()[0])
-        real_depth = numpy.copy(depth_accumulator)
-        depth_accumulator[depth_accumulator > 0] = 255
-        # print(ir_feed)
-        # depth_accumulator = depth_accumulator.astype()
-        ir_feed = numpy.bitwise_and(depth_accumulator.astype(numpy.uint8), numpy.array(ir_feed[1])).astype(numpy.uint8)
-        # cv2.imwrite("thing.png", frame_convert.pretty_depth_cv(ir_feed))
-        process_frame = pretty_depth_cv(ir_feed)
-        return process_frame, real_depth
+def read_kinect_images():
+    rgb = video_cv(freenect.sync_get_video()[0])
+    ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
+    ir_feed = ir_feed[1], ir_feed[0]
+    # depth_feed = freenect.sync_get_depth()
+    # ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
+    # cv2.imwrite("temp_video.png", ir_feed[1])
+    depth_accumulator = freenect.sync_get_depth()[0]
+    # print(real_depth)
+    depth_accumulator[depth_accumulator > 2046] = 0
+    for i in range(10):
+        # print(depth_accumulator)
+        depth_accumulator = combine_depth_frames(depth_accumulator, freenect.sync_get_depth()[0])
+    real_depth = numpy.copy(depth_accumulator)
+    depth_accumulator[depth_accumulator > 0] = 255
+    # print(ir_feed)
+    # depth_accumulator = depth_accumulator.astype()
+    ir_feed = numpy.bitwise_and(depth_accumulator.astype(numpy.uint8), numpy.array(ir_feed[1])).astype(numpy.uint8)
+    # cv2.imwrite("thing.png", frame_convert.pretty_depth_cv(ir_feed))
+    ir = pretty_depth_cv(ir_feed)
+    return rgb, ir, real_depth
 
 def gen(write_flag=False):
-    global last_frame_sent, process_frame, depth_frame, ir_frame
+    global last_frame_sent, rgb_frame, depth_frame, ir_frame
     while True:
-        process_frame = read_kinect_image()
-        frame = get_frame(process_frame) 
-        ir_frame, depth_frame = read_kinect_image(ir=True)
+        rgb_frame, ir_frame, depth_frame = read_kinect_images()
+        frame = get_frame(rgb_frame)
         if time.time() - last_frame_sent > 1/35:
             last_frame_sent = time.time()
             yield (b'--frame\r\n'
@@ -79,7 +76,7 @@ def video_feed():
 def index():
     return render_template('index.html')
 
-    global process_frame, depth_frame
+    global rgb_frame, depth_frame
 
 @app.route('/get_lift')
 def get_lift():
@@ -122,9 +119,9 @@ def get_gear():
                 turn_angle,distance
 
     """
-    global process_frame, depth_frame
+    global rgb_frame, depth_frame
     try:
-        info = vision_processing.get_gear_info(process_frame, depth_frame)
+        info = vision_processing.get_gear_info(rgb_frame, depth_frame)
         return ",".join([str(info["turn"]), str(info["distance"])])
     except vision_processing.GearNotFoundException:
         print("No gear found")
@@ -138,7 +135,7 @@ def get_gear():
 @app.errorhandler(Exception)
 def all_exception_handler(error):
     print(error)
-    return 'Error', 500
+    return '-1', 500
 
 if __name__ == '__main__':
     app.run("0.0.0.0", debug=True, port=8080, threaded=True)
