@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
+"""
+Gets images from Kinect and streams them using Flask. Also, uses vision processing to find areas of interest for
+FRC Steamworks 2017.
 
-import flask
+Parth Oza
+Kent Ma
+Jagan Prem
+Original Motion JPEG Streamer code (c) Miguel Grinberg (https://github.com/miguelgrinberg/flask-video-streaming)
+"""
 
 from flask import Flask, render_template, Response
 import vision_processing
@@ -19,32 +26,39 @@ ir_frame = None
 last_frame_sent = 0
 
 
-def get_frame(image):
-    # print(image)
-    # We are using Motion JPEG, but OpenCV defaults to capture raw images,
-    # so we must encode it into JPEG in order to correctly display the
-    # video stream.
-    ret, jpeg = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 30])
+def encode_frame(image, quality=30):
+    """
+    Encodes OpenCV image into JPEG format with set compression
+    :param image: image to encode (numpy array)
+    :param quality: Percentage of quality to preserve (inverse of compression amount)
+    :return: JPEG bytes of image given
+    """
+    ret, jpeg = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])
     return jpeg.tobytes()
 
 
 def combine_depth_frames(frame1, frame2):
+    """
+    Given two depth arrays, combines them to eliminate as many zero values as possible
+    :param frame1: original frame to add to
+    :param frame2: new frame to combine into frame1
+    :return: the combined image
+    """
     frame2[frame2 > 2046] = 0
     return numpy.bitwise_or(frame1, frame2)
 
 
 def read_kinect_images():
+    """
+    Gets rgb, ir, and combined depth images from Kinect
+    :return: rgb, ir, depth images in that order as a tuple
+    """
     rgb = video_cv(freenect.sync_get_video()[0])
     ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
     ir_feed = ir_feed[1], ir_feed[0]
-    # depth_feed = freenect.sync_get_depth()
-    # ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
-    # cv2.imwrite("temp_video.png", ir_feed[1])
     depth_accumulator = freenect.sync_get_depth()[0]
-    # print(real_depth)
     depth_accumulator[depth_accumulator > 2046] = 0
     for i in range(10):
-        # print(depth_accumulator)
         depth_accumulator = combine_depth_frames(depth_accumulator, freenect.sync_get_depth()[0])
     real_depth = numpy.copy(depth_accumulator)
     depth_accumulator[depth_accumulator > 0] = 255
@@ -55,39 +69,41 @@ def read_kinect_images():
     ir = pretty_depth_cv(ir_feed)
     return rgb, ir, real_depth
 
-def gen(write_flag=False):
+
+def gen():
+    """
+    Generator for motion JPEG format - keeps returning next frame in stream - caps at 35 fps
+    :return: Next frame of stream encoded as frame of Motion JPEG stream
+    """
     global last_frame_sent, rgb_frame, depth_frame, ir_frame
     while True:
         rgb_frame, ir_frame, depth_frame = read_kinect_images()
-        frame = get_frame(rgb_frame)
+        frame = encode_frame(rgb_frame)
         if time.time() - last_frame_sent > 1/35:
             last_frame_sent = time.time()
-            yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+            yield (b"--frame\nContent-Type: image/jpeg\n\n" + frame + b"\n\r\n")
 
 
-@app.route('/video_feed')
+@app.route("/video_feed")
 def video_feed():
+    """
+    Flask endpoint for video stream
+    :return: Properly formed HTTP response for next frame in multipart
+    """
     return Response(gen(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+                    mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-    global rgb_frame, depth_frame
-
-@app.route('/get_lift')
+@app.route("/get_lift")
 def get_lift():
     """
-        Calculates the information the bot needs to move by in order
-        to point the Kinect at the lift (turn_angle),  how many degrees off of horizontal
-        the lift is, and how far forward it is
+    Calculates the information the bot needs to move by in order
+    to point the Kinect at the lift (turn_angle),  how many degrees off of horizontal
+    the lift is, and how far forward it is
 
-        :return: -1 if goal not found or the lateral and vertical offset in the
-                following format:
-                offset_angle,turn_angle,distance
+    :return: -1 if goal not found or the lateral and vertical offset in the
+            following format:
+            offset_angle,turn_angle,distance
 
     """
     global ir_frame, depth_frame
@@ -109,14 +125,14 @@ def get_lift():
         return "-1", 503
 
 
-@app.route('/get_gear')
+@app.route("/get_gear")
 def get_gear():
     """
-        Calculates the turning angle and distance needed for the bot to get to the gear
+    Calculates the turning angle and distance needed for the bot to get to the gear
 
-        :return: -1 if goal not found or the lateral and vertical offset in the
-                following format:
-                turn_angle,distance
+    :return: -1 if goal not found or the lateral and vertical offset in the
+            following format:
+            turn_angle,distance
 
     """
     global rgb_frame, depth_frame
@@ -134,8 +150,23 @@ def get_gear():
 
 @app.errorhandler(Exception)
 def all_exception_handler(error):
+    """
+    Flask endpoint for catching all errors to prevent crashes on robot or streamer
+    :param error: Error that was caught
+    :return: -1 and error code
+    """
     print(error)
-    return '-1', 500
+    return "-1", 500
 
-if __name__ == '__main__':
+
+@app.route("/")
+def index():
+    """
+    The Flask endpoint for main page for video streamer
+    :return: the rendered form of the index.html page
+    """
+    return render_template("index.html")
+
+
+if __name__ == "__main__":
     app.run("0.0.0.0", debug=True, port=8080, threaded=True)
