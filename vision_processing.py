@@ -34,7 +34,7 @@ class TooMuchInterferenceException(Exception):
         return repr(self.value)
 
 
-class GoalNotFoundException(Exception):
+class LiftNotFoundException(Exception):
     """
     The Exception raised when there is no goal in the image
     """
@@ -154,7 +154,7 @@ def get_lift_position_from_src(src):
     rectangles = y_filter_rectangles(rectangles)
 
     if len(rectangles) < 2:
-        raise GoalNotFoundException("yo no goals")
+        raise LiftNotFoundException("yo no goals")
     elif len(rectangles) > 4:
         raise TooMuchInterferenceException("why is everything reflective :/")
 

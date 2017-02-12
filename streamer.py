@@ -81,12 +81,12 @@ def index():
 
     global process_frame, depth_frame
 
-@app.route('/get_peg')
-def get_peg():
+@app.route('/get_lift')
+def get_lift():
     """
         Calculates the information the bot needs to move by in order
-        to point the Kinect at the peg (turn_angle),  how many degrees off of horizontal
-        the peg is, and how far forward it is
+        to point the Kinect at the lift (turn_angle),  how many degrees off of horizontal
+        the lift is, and how far forward it is
 
         :return: -1 if goal not found or the lateral and vertical offset in the
                 following format:
@@ -94,20 +94,17 @@ def get_peg():
 
     """
     global ir_frame, depth_frame
-    print("gotten the pegerino?")
+    print("gotten the lifterino?")
     try:
         # print(frame)
-        info = vision_processing.get_peg_info(ir_frame, depth_frame)
+        info = vision_processing.get_lift_info(ir_frame, depth_frame)
         # print(info)
         return ",".join([str(info["offset"]), str(info["turn"]), str(info["distance"])])
-    except vision_processing.GoalNotFoundException:
-        print("No goal found")
+    except vision_processing.LiftNotFoundException:
+        print("No lift found")
         return "-1", 503
     except vision_processing.TooMuchInterferenceException:
-        print("No goal found (too much interference)")
-        return "-1", 503
-    except FileNotFoundError:
-        print("No file found")
+        print("No lift found (too much interference)")
         return "-1", 503
     except Exception as e:
         print("something has gone horribly wrong", e)
@@ -131,9 +128,6 @@ def get_gear():
         return ",".join([str(info["turn"]), str(info["distance"])])
     except vision_processing.GearNotFoundException:
         print("No gear found")
-        return "-1", 503
-    except FileNotFoundError:
-        print("No file found")
         return "-1", 503
     except Exception as e:
         print("something has gone horribly wrong", e)
