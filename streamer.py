@@ -7,6 +7,7 @@ Parth Oza
 Kent Ma
 Jagan Prem
 Original Motion JPEG Streamer code (c) Miguel Grinberg (https://github.com/miguelgrinberg/flask-video-streaming)
+FRC Team 4099
 """
 
 from flask import Flask, render_template, Response
