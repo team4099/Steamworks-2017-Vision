@@ -187,7 +187,9 @@ def get_lift_position_from_src(src):
         combos = list(combinations((0, 1, 2, 3), 2))
         pair1 = min(range(len(combos)), key=lambda i: distance_squared(rectangles[combos[i][0]][:2], rectangles[combos[i][1]][:2]))
         pair2 = len(combos) - pair1 - 1
-        size = lambda i: rectangles[i][2] * rectangles[i][3]
+
+        def size(i): return rectangles[i][2] * rectangles[i][3]
+
         if size(combos[pair1][0]) + size(combos[pair1][1]) > size(combos[pair2][0]) + size(combos[pair2][1]):
             rectangles = [rectangles[combos[pair1][0]], rectangles[combos[pair1][1]]]
         else:
@@ -251,7 +253,7 @@ def depth_at_pixel(depth_array, pixel, vertical_step=1, side_step=-1):
         new_pixel[1] += vertical_step
     if depth_array[int(new_pixel[1])][int(new_pixel[0])] == 0:
         new_pixel = numpy.copy(pixel)
-        while 0 < new_pixel[0] < depth_array.shape[1] - 1 and depth_array[new_pixel[1], new_pixel[0]] == 0:
+        while 0 < new_pixel[0] < depth_array.shape[1] - 1 and depth_array[int(new_pixel[1]), int(new_pixel[0])] == 0:
             new_pixel[0] += side_step
     # print("raw depth:", depth_array[new_pixel[1], new_pixel[0]])
     return kinect_depth_to_meters(depth_array[int(new_pixel[1]), int(new_pixel[0])])
@@ -332,7 +334,7 @@ def main():
     # cv2.imwrite("output/rgb" + str(int(time.time()/1)) + ".png", rgb)
     # cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
     # numpy.save("depth.npy", depth)
-    # depth = numpy.load("depth.npy")
+    depth = numpy.load("depth.npy")
     # image = cv2.cvtColor(cv2.imread("output/ir.png"), cv2.COLOR_BGR2GRAY)
     # print(depth)
     # rgb = cv2.imread("output/rgb1486163995.png")
