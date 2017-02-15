@@ -19,6 +19,9 @@ import cv2
 import time
 import traceback
 
+FPS = 30
+FRAMES_PER_VIDEO_FILE = FPS * 15
+
 app = Flask(__name__)
 rgb_frame = None
 depth_frame = None
@@ -26,6 +29,11 @@ ir_frame = None
 
 last_frame_sent = 0
 
+frames_stored = float("inf")
+
+rgb_writer = cv2.VideoWriter()
+depth_writer = cv2.VideoWriter()
+ir_writer = cv2.VideoWriter()
 
 def encode_frame(image, quality=30):
     """
@@ -76,11 +84,21 @@ def gen():
     Generator for motion JPEG format - keeps returning next frame in stream - caps at 35 fps
     :return: Next frame of stream encoded as frame of Motion JPEG stream
     """
-    global last_frame_sent, rgb_frame, depth_frame, ir_frame
+    global last_frame_sent, rgb_frame, depth_frame, ir_frame, frames_stored, rgb_writer, depth_writer, ir_writer
     while True:
         rgb_frame, ir_frame, depth_frame = read_kinect_images()
+        if frames_stored > FRAMES_PER_VIDEO_FILE:
+            frames_stored = 0
+            rgb_writer.open("log/rgb" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
+            depth_writer.open("log/depth" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
+            ir_writer.open("log/ir" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
+        rgb_writer.write(rgb_frame)
+        depth_writer.write(pretty_depth_cv(depth_frame))
+        ir_writer.write(ir_frame)
+        frames_stored += 1
+
         frame = encode_frame(rgb_frame)
-        if time.time() - last_frame_sent > 1/35:
+        if time.time() - last_frame_sent > 1/FPS:
             last_frame_sent = time.time()
             yield (b"--frame\nContent-Type: image/jpeg\n\n" + frame + b"\n\r\n")
 
