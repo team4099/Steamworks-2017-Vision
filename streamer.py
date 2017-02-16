@@ -62,7 +62,6 @@ def read_kinect_images():
     Gets rgb, ir, and combined depth images from Kinect
     :return: rgb, ir, depth images in that order as a tuple
     """
-    rgb = video_cv(freenect.sync_get_video()[0])
     ir_feed = freenect.sync_get_video(0, format=freenect.VIDEO_IR_8BIT)
     ir_feed = ir_feed[1], ir_feed[0]
     depth_accumulator = freenect.sync_get_depth()[0]
@@ -76,6 +75,7 @@ def read_kinect_images():
     ir_feed = numpy.bitwise_and(depth_accumulator.astype(numpy.uint8), numpy.array(ir_feed[1])).astype(numpy.uint8)
     # cv2.imwrite("thing.png", frame_convert.pretty_depth_cv(ir_feed))
     ir = pretty_depth_cv(ir_feed)
+    rgb = video_cv(freenect.sync_get_video()[0])
     return rgb, ir, real_depth
 
 
