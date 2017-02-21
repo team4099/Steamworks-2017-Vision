@@ -19,7 +19,7 @@ import cv2
 import time
 import traceback
 
-FPS = 30
+FPS = 1/30
 FRAMES_PER_VIDEO_FILE = FPS * 15
 
 app = Flask(__name__)
@@ -34,6 +34,8 @@ frames_stored = float("inf")
 rgb_writer = cv2.VideoWriter()
 depth_writer = cv2.VideoWriter()
 ir_writer = cv2.VideoWriter()
+
+get_ir = True
 
 def encode_frame(image, quality=30):
     """
@@ -85,13 +87,16 @@ def gen():
     Generator for motion JPEG format - keeps returning next frame in stream - caps at 35 fps
     :return: Next frame of stream encoded as frame of Motion JPEG stream
     """
-    global last_frame_sent, rgb_frame, depth_frame, ir_frame, frames_stored, rgb_writer, depth_writer, ir_writer
+    global last_frame_sent, rgb_frame, frames_stored, get_ir, ir_frame, depth_frame
     while True:
+        # frames_stored += 1
         rgb_frame = read_kinect_images(ir=False)
-        ir_frame, depth_frame = read_kinect_images()
-        frames_stored += 1
-        frame = encode_frame(rgb_frame)
-        if time.time() - last_frame_sent > 1/FPS:
+        if get_ir:
+            ir_frame, depth_frame = read_kinect_images(ir=True)
+            get_ir = False
+        # ir_frame, depth_frame = read_kinect_images()
+        if time.time() - last_frame_sent > FPS:
+            frame = encode_frame(rgb_frame)
             last_frame_sent = time.time()
             # if frames_stored > FRAMES_PER_VIDEO_FILE:
             #     frames_stored = 0
@@ -126,10 +131,16 @@ def get_lift():
             offset_angle,turn_angle,distance
 
     """
-    global ir_frame, depth_frame
+    global ir_frame, depth_frame, get_ir
     print("gotten the lifterino?")
     try:
         # print(frame)
+        get_ir = True
+        while get_ir:
+            pass
+        # ir_frame, depth_frame = read_kinect_images()
+        cv2.imwrite("potato.png", ir_frame)
+        print(ir_frame)
         info = vision_processing.get_lift_info(ir_frame, depth_frame)
         # print(info)
         return ",".join([str(info["offset"]), str(info["turn"]), str(info["distance"])])
