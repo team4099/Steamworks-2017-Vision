@@ -137,10 +137,10 @@ def get_lift():
         # print(frame)
         get_ir = True
         while get_ir:
-            pass
+            time.sleep(0.1)
         # ir_frame, depth_frame = read_kinect_images()
-        cv2.imwrite("potato.png", ir_frame)
-        print(ir_frame)
+        # cv2.imwrite("potato.png", ir_frame)
+        # print(ir_frame)
         info = vision_processing.get_lift_info(ir_frame, depth_frame)
         # print(info)
         return ",".join([str(info["offset"]), str(info["turn"]), str(info["distance"])])
