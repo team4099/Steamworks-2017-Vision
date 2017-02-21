@@ -93,14 +93,14 @@ def gen():
         frame = encode_frame(rgb_frame)
         if time.time() - last_frame_sent > 1/FPS:
             last_frame_sent = time.time()
-            if frames_stored > FRAMES_PER_VIDEO_FILE:
-                frames_stored = 0
-                rgb_writer.open("log/rgb" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
-                depth_writer.open("log/depth" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
-                ir_writer.open("log/ir" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
-            rgb_writer.write(rgb_frame)
-            depth_writer.write(pretty_depth_cv(depth_frame))
-            ir_writer.write(ir_frame)
+            # if frames_stored > FRAMES_PER_VIDEO_FILE:
+            #     frames_stored = 0
+            #     rgb_writer.open("log/rgb" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
+            #     depth_writer.open("log/depth" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
+            #     ir_writer.open("log/ir" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
+            # rgb_writer.write(rgb_frame)
+            # depth_writer.write(pretty_depth_cv(depth_frame))
+            # ir_writer.write(ir_frame)
             yield (b"--frame\nContent-Type: image/jpeg\n\n" + frame + b"\n\r\n")
 
 
