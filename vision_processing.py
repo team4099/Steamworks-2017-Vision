@@ -14,6 +14,9 @@ import cv2
 import numpy
 import math
 from itertools import combinations
+import time
+from frame_convert2 import *
+import freenect
 
 DISTANCE_LIFT_TAPE_METERS = 0.26  # outside edges
 FOV_OF_CAMERA = math.radians(57)
@@ -71,7 +74,7 @@ def lift_binary_threshold(src):
     :param src: image to threshold (grayscale, usually IR image)
     :return: thresholded image
     """
-    return cv2.threshold(src, 30, 255, cv2.THRESH_BINARY)[1]
+    return cv2.threshold(src, 15, 255, cv2.THRESH_BINARY)[1]
 
 
 def gear_hsv_threshold(src):
@@ -154,16 +157,16 @@ def get_lift_position_from_src(src):
     :param src: the source IR image to find the LIFT in
     :return: two coordinates - one for each piece of reflective tape - left outside center, right outside center
     """
-    blur = blur_image(src, 5)
+    blur = blur_image(src, 3)
 
     threshold = lift_binary_threshold(blur)
     cv2.imwrite("output/threshold.png", threshold)
 
     contours = get_contours(threshold)
     filtered_contours = lift_filter_contours(contours)
-    # contour_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
-    # cv2.drawContours(contour_drawn, filtered_contours, -1, (0,255,0), 3)
-    # cv2.imwrite("output/contoured.png", contour_drawn)
+    contour_drawn = cv2.cvtColor(numpy.copy(threshold), cv2.COLOR_GRAY2BGR)
+    cv2.drawContours(contour_drawn, filtered_contours, -1, (0,255,0), 3)
+    cv2.imwrite("output/contoured.png", contour_drawn)
  
     rectangles = []
     
@@ -329,16 +332,18 @@ def get_gear_info(image, depth):
 
 def main():
     import streamer
-    rgb, image, depth = streamer.read_kinect_images()
-    # cv2.imwrite("output/ir.png", image)
-    # cv2.imwrite("output/rgb" + str(int(time.time()/1)) + ".png", rgb)
-    # cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
+    # rgb, image, depth = streamer.read_kinect_images()
+    rgb = streamer.read_kinect_images(ir=False)
+    image, depth = streamer.read_kinect_images(ir=True)
+    cv2.imwrite("output/ir.png", image)
+    cv2.imwrite("output/rgb" + str(int(time.time()/1)) + ".png", rgb)
+    cv2.imwrite("output/depth.png", pretty_depth_cv(numpy.copy(depth)))
     # numpy.save("depth.npy", depth)
-    depth = numpy.load("depth.npy")
+    # depth = numpy.load("depth.npy")
     # image = cv2.cvtColor(cv2.imread("output/ir.png"), cv2.COLOR_BGR2GRAY)
     # print(depth)
     # rgb = cv2.imread("output/rgb1486163995.png")
-    print("lift:", get_lift_info(image, depth))
+    # print("lift:", get_lift_info(image, depth))
     print("gear:", get_gear_info(rgb, depth))
 
 if __name__ == "__main__":
