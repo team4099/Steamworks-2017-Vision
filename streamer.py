@@ -19,8 +19,8 @@ import cv2
 import time
 import traceback
 
-FPS = 1/30
-FRAMES_PER_VIDEO_FILE = FPS * 15
+SPF = 1 / 30
+FRAMES_PER_VIDEO_FILE = SPF * 15
 
 app = Flask(__name__)
 rgb_frame = None
@@ -93,22 +93,18 @@ def gen():
     while True:
         # frames_stored += 1
         if get_ir:
-            # time.sleep(0.5)
-            print("got ir")
             ir_frame, depth_frame = read_kinect_images(ir=True)
-            print("really got ir")
             get_ir = False
-            # time.sleep(0.5)
         # ir_frame, depth_frame = read_kinect_images()
-        if time.time() - last_frame_sent > FPS:
+        if time.time() - last_frame_sent > SPF:
             rgb_frame = read_kinect_images(ir=False)
             frame = encode_frame(rgb_frame)
             last_frame_sent = time.time()
             # if frames_stored > FRAMES_PER_VIDEO_FILE:
             #     frames_stored = 0
-            #     rgb_writer.open("log/rgb" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
-            #     depth_writer.open("log/depth" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
-            #     ir_writer.open("log/ir" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), FPS)
+            #     rgb_writer.open("log/rgb" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), SPF)
+            #     depth_writer.open("log/depth" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), SPF)
+            #     ir_writer.open("log/ir" + str(int(time.time())) + ".mp4", cv2.VideoWriter_fourcc(*"H264"), SPF)
             # rgb_writer.write(rgb_frame)
             # depth_writer.write(pretty_depth_cv(depth_frame))
             # ir_writer.write(ir_frame)
