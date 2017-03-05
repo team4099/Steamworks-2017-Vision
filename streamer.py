@@ -44,7 +44,9 @@ def encode_frame(image, quality=30):
     :param quality: Percentage of quality to preserve (inverse of compression amount)
     :return: JPEG bytes of image given
     """
-    ret, jpeg = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    lined_image1 = cv2.line(image, (30, 0), (30, 480), (255, 0, 119), thickness=4, lineType=cv2.LINE_AA)
+    lined_image2 = cv2.line(lined_image1, (40, 0), (40, 480), (255, 0, 119), thickness=4, lineType=cv2.LINE_AA)
+    ret, jpeg = cv2.imencode(".jpg", lined_image2, [cv2.IMWRITE_JPEG_QUALITY, quality])
     return jpeg.tobytes()
 
 
@@ -141,6 +143,7 @@ def get_lift():
         # ir_frame, depth_frame = read_kinect_images()
         # cv2.imwrite("potato.png", ir_frame)
         # print(ir_frame)
+
         info = vision_processing.get_lift_info(ir_frame, depth_frame)
         # print(info)
         return ",".join([str(info["offset"]), str(info["turn"]), str(info["distance"])])
