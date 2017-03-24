@@ -89,7 +89,6 @@ def combine_depth_frames(frame1, frame2):
     return numpy.bitwise_or(frame1, frame2)
 
 
-@timeout(5)
 def read_kinect_images(ir=True):
     """
     Gets rgb, ir, and combined depth images from Kinect
@@ -130,10 +129,10 @@ def gen():
                 frame = encode_frame(rgb_frame)
                 last_frame_sent = time.time()
                 yield (b"--frame\nContent-Type: image/jpeg\n\n" + frame + b"\n\r\n")
-        except TimeoutError, e:
+        except TimeoutError as e:
             print("TimeoutError:", e)
             restart()
-        except Exception, e:
+        except Exception as e:
             print("it died pls", e)
 
 
