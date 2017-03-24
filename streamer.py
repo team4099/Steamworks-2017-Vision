@@ -130,10 +130,11 @@ def gen():
                 frame = encode_frame(rgb_frame)
                 last_frame_sent = time.time()
                 yield (b"--frame\nContent-Type: image/jpeg\n\n" + frame + b"\n\r\n")
-        except:
-            print("it died pls")
+        except TimeoutError, e:
+            print("TimeoutError:", e)
             restart()
-            pass
+        except Exception, e:
+            print("it died pls", e)
 
 
 @app.route("/video_feed")
@@ -214,6 +215,7 @@ def get_gear():
 
 @app.route("/restart")
 def restart():
+    # return "restarting", 500
     return subprocess.check_output(['/sbin/initctl', 'restart', 'vision']), 500
 
 @app.errorhandler(Exception)
