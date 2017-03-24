@@ -11,16 +11,19 @@ FRC Team 4099
 """
 
 from flask import Flask, render_template, Response
+from frame_convert2 import *
+from functools import wraps
 import vision_processing
 import numpy
 import freenect
-from frame_convert2 import *
 import cv2
 import time
 import traceback
 import os
 import sys
 import subprocess
+import signal
+import errno
 
 SPF = 1 / 30
 FRAMES_PER_VIDEO_FILE = SPF * 15
@@ -39,6 +42,27 @@ depth_writer = cv2.VideoWriter()
 ir_writer = cv2.VideoWriter()
 
 get_ir = False
+
+class TimeoutError(Exception):
+    pass
+
+def timeout(seconds=10, error_message=os.strerror(errno.ETIME)):
+    def decorator(func):
+        def _handle_timeout(signum, frame):
+            raise TimeoutError(error_message)
+
+        def wrapper(*args, **kwargs):
+            signal.signal(signal.SIGALRM, _handle_timeout)
+            signal.alarm(seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)
+            return result
+
+        return wraps(func)(wrapper)
+
+    return decorator
 
 def encode_frame(image, quality=30):
     """
@@ -65,6 +89,7 @@ def combine_depth_frames(frame1, frame2):
     return numpy.bitwise_or(frame1, frame2)
 
 
+@timeout(5)
 def read_kinect_images(ir=True):
     """
     Gets rgb, ir, and combined depth images from Kinect
