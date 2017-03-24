@@ -224,6 +224,7 @@ def all_exception_handler(error):
     :return: -1 and error code
     """
     print(error)
+    restart()
     return "-1", 500
 
 
